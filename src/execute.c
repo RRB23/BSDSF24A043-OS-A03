@@ -1,20 +1,68 @@
 #include "shell.h"
 
+int handle_builtin(char** arglist) {
+
+    // Exit command
+    if (strcmp(arglist[0], "exit") == 0) {
+        printf("Exiting shell...\n");
+        exit(0);
+    }
+
+    // Change directory command
+    else if (strcmp(arglist[0], "cd") == 0) {
+
+        if (arglist[1] == NULL) {
+            fprintf(stderr, "cd: directory required\n");
+        }
+        else if (chdir(arglist[1]) != 0) {
+            perror("cd");
+        }
+
+        return 1;
+    }
+
+    // Help command
+    else if (strcmp(arglist[0], "help") == 0) {
+
+        printf("\nBuilt-in Commands:\n");
+        printf("cd <directory> - Change directory\n");
+        printf("exit           - Exit shell\n");
+        printf("help           - Display help\n");
+        printf("jobs           - Display job status\n\n");
+
+        return 1;
+    }
+
+    // Jobs command
+    else if (strcmp(arglist[0], "jobs") == 0) {
+
+        printf("Job control not yet implemented.\n");
+        return 1;
+    }
+
+    return 0;
+}
+
+
+// Execute external commands
 int execute(char* arglist[]) {
+
     int status;
     int cpid = fork();
 
     switch (cpid) {
+
         case -1:
             perror("fork failed");
-            exit(1);
-        case 0: // Child process
+            return -1;
+
+        case 0:
             execvp(arglist[0], arglist);
-            perror("Command not found"); // This line runs only if execvp fails
+            perror("Command not found");
             exit(1);
-        default: // Parent process
+
+        default:
             waitpid(cpid, &status, 0);
-            // printf("Child pid:%d exited with status %d\n", cpid, status >> 8);
             return 0;
     }
 }
