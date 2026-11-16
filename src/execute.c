@@ -2,13 +2,11 @@
 
 int handle_builtin(char** arglist) {
 
-    // Exit command
     if (strcmp(arglist[0], "exit") == 0) {
         printf("Exiting shell...\n");
         exit(0);
     }
 
-    // Change directory command
     else if (strcmp(arglist[0], "cd") == 0) {
 
         if (arglist[1] == NULL) {
@@ -21,30 +19,36 @@ int handle_builtin(char** arglist) {
         return 1;
     }
 
-    // Help command
     else if (strcmp(arglist[0], "help") == 0) {
 
         printf("\nBuilt-in Commands:\n");
         printf("cd <directory> - Change directory\n");
         printf("exit           - Exit shell\n");
         printf("help           - Display help\n");
-        printf("jobs           - Display job status\n\n");
+        printf("jobs           - Display job status\n");
+        printf("history        - Display command history\n\n");
 
         return 1;
     }
 
-    // Jobs command
     else if (strcmp(arglist[0], "jobs") == 0) {
 
         printf("Job control not yet implemented.\n");
         return 1;
     }
 
+    else if (strcmp(arglist[0], "history") == 0) {
+
+        for (int i = 0; i < history_count; i++) {
+            printf("%d  %s\n", i + 1, command_history[i]);
+        }
+
+        return 1;
+    }
+
     return 0;
 }
 
-
-// Execute external commands
 int execute(char* arglist[]) {
 
     int status;
