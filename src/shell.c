@@ -2,61 +2,73 @@
 
 char* read_cmd(char* prompt, FILE* fp) {
     printf("%s", prompt);
-    char* cmdline = (char*) malloc(sizeof(char) * MAX_LEN);
-    int c, pos = 0;
+    char* cmdline = malloc(MAX_LEN);
+    if (!cmdline) return NULL;
 
-    while ((c = getc(fp)) != EOF) {
-        if (c == '\n') break;
-        cmdline[pos++] = c;
-    }
-
-    if (c == EOF && pos == 0) {
+    if (fgets(cmdline, MAX_LEN, fp) == NULL) {
         free(cmdline);
-        return NULL; // Handle Ctrl+D
+        return NULL;
     }
-    
-    cmdline[pos] = '\0';
+
+    cmdline[strcspn(cmdline, "\n")] = '\0';
     return cmdline;
 }
 
 char** tokenize(char* cmdline) {
-    // Edge case: empty command line
-    if (cmdline == NULL || cmdline[0] == '\0' || cmdline[0] == '\n') {
+    if (cmdline == NULL || cmdline[0] == '\0')
         return NULL;
-    }
 
-    char** arglist = (char**)malloc(sizeof(char*) * (MAXARGS + 1));
-    for (int i = 0; i < MAXARGS + 1; i++) {
-        arglist[i] = (char*)malloc(sizeof(char) * ARGLEN);
-        bzero(arglist[i], ARGLEN);
-    }
+    char** args = calloc(MAXARGS + 1, sizeof(char*));
+    int count = 0;
+    char* p = cmdline;
 
-    char* cp = cmdline;
-    char* start;
-    int len;
-    int argnum = 0;
+    while (*p && count < MAXARGS) {
+        while (*p == ' ' || *p == '\t')
+            p++;
 
-    while (*cp != '\0' && argnum < MAXARGS) {
-        while (*cp == ' ' || *cp == '\t') cp++; // Skip leading whitespace
-        
-        if (*cp == '\0') break; // Line was only whitespace
+        if (*p == '\0')
+            break;
 
-        start = cp;
-        len = 1;
-        while (*++cp != '\0' && !(*cp == ' ' || *cp == '\t')) {
-            len++;
+        if (*p == '<' || *p == '>' || *p == '|') {
+            args[count++] = strndup(p, 1);
+            p++;
+            continue;
         }
-        strncpy(arglist[argnum], start, len);
-        arglist[argnum][len] = '\0';
-        argnum++;
+
+        char token[ARGLEN];
+        int i = 0;
+        char quote = '\0';
+
+        while (*p) {
+            if (quote) {
+                if (*p == quote) {
+                    quote = '\0';
+                    p++;
+                } else if (i < ARGLEN - 1) {
+                    token[i++] = *p++;
+                } else {
+                    p++;
+                }
+            } else {
+                if (*p == '"' || *p == '\'') {
+                    quote = *p++;
+                } else if (*p == ' ' || *p == '\t' ||
+                           *p == '<' || *p == '>' || *p == '|') {
+                    break;
+                } else if (i < ARGLEN - 1) {
+                    token[i++] = *p++;
+                } else {
+                    p++;
+                }
+            }
+        }
+
+        token[i] = '\0';
+
+        if (i > 0)
+            args[count++] = strdup(token);
     }
 
-    if (argnum == 0) { // No arguments were parsed
-        for(int i = 0; i < MAXARGS + 1; i++) free(arglist[i]);
-        free(arglist);
-        return NULL;
-    }
-
-    arglist[argnum] = NULL;
-    return arglist;
+    args[count] = NULL;
+    return args;
 }

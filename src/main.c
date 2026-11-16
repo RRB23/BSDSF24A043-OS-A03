@@ -9,18 +9,14 @@ int main() {
 
     while ((cmdline = readline(PROMPT)) != NULL) {
 
-        // Ignore empty commands
         if (cmdline[0] == '\0') {
             free(cmdline);
             continue;
         }
 
-        // Add command to Readline history
         add_history(cmdline);
 
-        // Handle !n command
         if (cmdline[0] == '!') {
-
             int n = atoi(cmdline + 1);
             HIST_ENTRY* entry = history_get(n);
 
@@ -30,9 +26,9 @@ int main() {
                 continue;
             }
 
+            char* previous = strdup(entry->line);
             free(cmdline);
-            cmdline = strdup(entry->line);
-
+            cmdline = previous;
             printf("%s\n", cmdline);
         }
 
@@ -40,13 +36,26 @@ int main() {
 
         if (arglist != NULL) {
 
-            if (!handle_builtin(arglist)) {
+            int has_operator = 0;
+
+            for (int i = 0; arglist[i] != NULL; i++) {
+                if (strcmp(arglist[i], "<") == 0 ||
+                    strcmp(arglist[i], ">") == 0 ||
+                    strcmp(arglist[i], "|") == 0) {
+                    has_operator = 1;
+                    break;
+                }
+            }
+
+            if (!has_operator && handle_builtin(arglist) == 0) {
+                execute(arglist);
+            }
+            else if (has_operator) {
                 execute(arglist);
             }
 
-            for (int i = 0; arglist[i] != NULL; i++) {
+            for (int i = 0; arglist[i] != NULL; i++)
                 free(arglist[i]);
-            }
 
             free(arglist);
         }

@@ -7,16 +7,14 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 #include <errno.h>
 
 #define MAX_LEN 512
-#define MAXARGS 10
-#define ARGLEN 30
+#define MAXARGS 50
+#define ARGLEN 100
 #define HISTORY_SIZE 20
 #define PROMPT "FCIT> "
-
-extern char* command_history[HISTORY_SIZE];
-extern int history_count;
 
 char* read_cmd(char* prompt, FILE* fp);
 char** tokenize(char* cmdline);
