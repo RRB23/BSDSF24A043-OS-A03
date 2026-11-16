@@ -5,9 +5,15 @@
 int main() {
 
     char* cmdline;
-    char** arglist;
 
-    while ((cmdline = readline(PROMPT)) != NULL) {
+    while (1) {
+
+        reap_jobs();
+
+        cmdline = readline(PROMPT);
+
+        if (cmdline == NULL)
+            break;
 
         if (cmdline[0] == '\0') {
             free(cmdline);
@@ -16,6 +22,7 @@ int main() {
 
         add_history(cmdline);
 
+        // Handle history execution: !n
         if (cmdline[0] == '!') {
             int n = atoi(cmdline + 1);
             HIST_ENTRY* entry = history_get(n);
@@ -32,32 +39,46 @@ int main() {
             printf("%s\n", cmdline);
         }
 
-        arglist = tokenize(cmdline);
+        // Split commands using semicolon
+        char* saveptr;
+        char* segment = strtok_r(cmdline, ";", &saveptr);
 
-        if (arglist != NULL) {
+        while (segment != NULL) {
 
-            int has_operator = 0;
+            char** args = tokenize(segment);
 
-            for (int i = 0; arglist[i] != NULL; i++) {
-                if (strcmp(arglist[i], "<") == 0 ||
-                    strcmp(arglist[i], ">") == 0 ||
-                    strcmp(arglist[i], "|") == 0) {
-                    has_operator = 1;
-                    break;
+            if (args != NULL) {
+
+                int count = 0;
+
+                while (args[count] != NULL)
+                    count++;
+
+                int background = 0;
+
+                // Check for & at the end
+                if (count > 0 &&
+                    strcmp(args[count - 1], "&") == 0) {
+
+                    background = 1;
+                    free(args[count - 1]);
+                    args[count - 1] = NULL;
+                    count--;
                 }
+
+                if (args[0] != NULL) {
+                    if (!handle_builtin(args)) {
+                        execute(args, background);
+                    }
+                }
+
+                for (int i = 0; args[i] != NULL; i++)
+                    free(args[i]);
+
+                free(args);
             }
 
-            if (!has_operator && handle_builtin(arglist) == 0) {
-                execute(arglist);
-            }
-            else if (has_operator) {
-                execute(arglist);
-            }
-
-            for (int i = 0; arglist[i] != NULL; i++)
-                free(arglist[i]);
-
-            free(arglist);
+            segment = strtok_r(NULL, ";", &saveptr);
         }
 
         free(cmdline);
