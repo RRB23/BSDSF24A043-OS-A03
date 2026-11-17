@@ -130,7 +130,7 @@ static void run_command(char** args, int input_fd, int output_fd) {
 
     execvp(args[0], args);
     perror("Command execution failed");
-    exit(1);
+    exit(127);
 }
 
 int execute(char** args, int background) {
@@ -138,6 +138,7 @@ int execute(char** args, int background) {
     if (!args || !args[0]) return 0;
 
     char command[MAX_LEN] = "";
+
     for (int i = 0; args[i] != NULL; i++) {
         if (strlen(command) + strlen(args[i]) + 2 < MAX_LEN) {
             strcat(command, args[i]);
@@ -158,9 +159,10 @@ int execute(char** args, int background) {
         args[pipe_pos] = NULL;
 
         int fd[2];
+
         if (pipe(fd) == -1) {
             perror("pipe");
-            return -1;
+            return 1;
         }
 
         pid_t left = fork();
@@ -182,24 +184,30 @@ int execute(char** args, int background) {
 
         waitpid(left, NULL, 0);
         waitpid(right, NULL, 0);
+
         return 0;
     }
 
     pid_t pid = fork();
 
+    if (pid < 0) {
+        perror("fork");
+        return 1;
+    }
+
     if (pid == 0)
         run_command(args, STDIN_FILENO, STDOUT_FILENO);
 
-    if (pid < 0) {
-        perror("fork");
-        return -1;
-    }
-
     if (background) {
         add_job(pid, command);
-    } else {
-        waitpid(pid, NULL, 0);
+        return 0;
     }
 
-    return 0;
+    int status;
+    waitpid(pid, &status, 0);
+
+    if (WIFEXITED(status))
+        return WEXITSTATUS(status);
+
+    return 1;
 }
