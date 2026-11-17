@@ -11,26 +11,42 @@ void execute_line(char *line) {
     while (segment != NULL) {
         char **args = tokenize(segment);
 
+        if (args != NULL && args[0] != NULL) {
+
+            /* Variable assignment */
+            char *equal = strchr(args[0], '=');
+
+            if (equal != NULL && equal != args[0]) {
+                *equal = '\0';
+
+                set_variable(args[0], equal + 1);
+
+            } else {
+                int count = 0;
+
+                while (args[count] != NULL)
+                    count++;
+
+                int background = 0;
+
+                if (count > 0 &&
+                    strcmp(args[count - 1], "&") == 0) {
+                    background = 1;
+                    free(args[count - 1]);
+                    args[count - 1] = NULL;
+                }
+
+                /* Expand variables */
+                expand_variables(args);
+
+                if (args[0] != NULL) {
+                    if (!handle_builtin(args))
+                        execute(args, background);
+                }
+            }
+        }
+
         if (args != NULL) {
-            int count = 0;
-
-            while (args[count] != NULL)
-                count++;
-
-            int background = 0;
-
-            if (count > 0 &&
-                strcmp(args[count - 1], "&") == 0) {
-                background = 1;
-                free(args[count - 1]);
-                args[count - 1] = NULL;
-            }
-
-            if (args[0] != NULL) {
-                if (!handle_builtin(args))
-                    execute(args, background);
-            }
-
             for (int i = 0; args[i] != NULL; i++)
                 free(args[i]);
 
@@ -49,13 +65,14 @@ int execute_condition(char *command) {
         return 1;
     }
 
+    expand_variables(args);
+
     int status;
 
-    if (handle_builtin(args)) {
+    if (handle_builtin(args))
         status = 0;
-    } else {
+    else
         status = execute(args, 0);
-    }
 
     for (int i = 0; args[i] != NULL; i++)
         free(args[i]);
@@ -142,17 +159,13 @@ int main() {
                 int status = execute_condition(condition);
 
                 if (status == 0) {
-                    for (int i = 0; i < then_count; i++) {
+                    for (int i = 0; i < then_count; i++)
                         execute_line(then_block[i]);
-                    }
                 } else {
-                    for (int i = 0; i < else_count; i++) {
+                    for (int i = 0; i < else_count; i++)
                         execute_line(else_block[i]);
-                    }
                 }
             }
-
-            /* Free allocated memory */
 
             for (int i = 0; i < then_count; i++)
                 free(then_block[i]);
@@ -161,12 +174,10 @@ int main() {
                 free(else_block[i]);
 
             free(condition);
-
             continue;
         }
 
         execute_line(cmdline);
-
         free(cmdline);
     }
 

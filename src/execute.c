@@ -1,6 +1,82 @@
 #include "shell.h"
 
 Job jobs[MAX_JOBS];
+Variable *variables = NULL;
+
+/* Store or update variable */
+int set_variable(const char *name, const char *value) {
+    Variable *current = variables;
+
+    while (current != NULL) {
+        if (strcmp(current->name, name) == 0) {
+            char *new_value = strdup(value);
+            if (!new_value) return 0;
+
+            free(current->value);
+            current->value = new_value;
+            return 1;
+        }
+        current = current->next;
+    }
+
+    Variable *new_variable = malloc(sizeof(Variable));
+    if (!new_variable) return 0;
+
+    new_variable->name = strdup(name);
+    new_variable->value = strdup(value);
+
+    if (!new_variable->name || !new_variable->value) {
+        free(new_variable->name);
+        free(new_variable->value);
+        free(new_variable);
+        return 0;
+    }
+
+    new_variable->next = variables;
+    variables = new_variable;
+
+    return 1;
+}
+
+/* Retrieve variable value */
+char *get_variable(const char *name) {
+    Variable *current = variables;
+
+    while (current != NULL) {
+        if (strcmp(current->name, name) == 0)
+            return current->value;
+
+        current = current->next;
+    }
+
+    return "";
+}
+
+/* Display all variables */
+void show_variables(void) {
+    Variable *current = variables;
+
+    while (current != NULL) {
+        printf("%s=%s\n", current->name, current->value);
+        current = current->next;
+    }
+}
+
+/* Expand $VARIABLE arguments */
+void expand_variables(char **args) {
+    for (int i = 0; args[i] != NULL; i++) {
+
+        if (args[i][0] == '$') {
+            char *value = get_variable(args[i] + 1);
+            char *expanded = strdup(value);
+
+            if (expanded) {
+                free(args[i]);
+                args[i] = expanded;
+            }
+        }
+    }
+}
 
 void add_job(pid_t pid, char* command) {
     for (int i = 0; i < MAX_JOBS; i++) {
@@ -13,6 +89,7 @@ void add_job(pid_t pid, char* command) {
             return;
         }
     }
+
     printf("Job list is full!\n");
 }
 
@@ -42,6 +119,7 @@ void show_jobs(void) {
                    jobs[i].pid, jobs[i].command);
         }
     }
+
     printf("\n");
 }
 
@@ -59,11 +137,12 @@ int handle_builtin(char** args) {
             fprintf(stderr, "cd: directory required\n");
         else if (chdir(args[1]) != 0)
             perror("cd");
+
         return 1;
     }
 
     if (strcmp(args[0], "help") == 0) {
-        printf("Built-ins: cd, exit, help, jobs, history\n");
+        printf("Built-ins: cd, exit, help, jobs, history, set\n");
         return 1;
     }
 
@@ -74,6 +153,11 @@ int handle_builtin(char** args) {
 
     if (strcmp(args[0], "history") == 0) {
         printf("Use Readline history.\n");
+        return 1;
+    }
+
+    if (strcmp(args[0], "set") == 0) {
+        show_variables();
         return 1;
     }
 
@@ -98,6 +182,7 @@ static void run_command(char** args, int input_fd, int output_fd) {
             if (!args[i + 1]) exit(1);
 
             int fd = open(args[i + 1], O_RDONLY);
+
             if (fd < 0) {
                 perror("input");
                 exit(1);
@@ -114,6 +199,7 @@ static void run_command(char** args, int input_fd, int output_fd) {
 
             int fd = open(args[i + 1],
                           O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
             if (fd < 0) {
                 perror("output");
                 exit(1);
@@ -129,6 +215,7 @@ static void run_command(char** args, int input_fd, int output_fd) {
     if (!args[0]) exit(1);
 
     execvp(args[0], args);
+
     perror("Command execution failed");
     exit(127);
 }
@@ -204,6 +291,7 @@ int execute(char** args, int background) {
     }
 
     int status;
+
     waitpid(pid, &status, 0);
 
     if (WIFEXITED(status))

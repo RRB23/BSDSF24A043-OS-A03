@@ -23,7 +23,14 @@ typedef struct {
     int active;
 } Job;
 
+typedef struct Variable {
+    char *name;
+    char *value;
+    struct Variable *next;
+} Variable;
+
 extern Job jobs[MAX_JOBS];
+extern Variable *variables;
 
 char* read_cmd(char* prompt, FILE* fp);
 char** tokenize(char* cmdline);
@@ -32,5 +39,10 @@ int handle_builtin(char** arglist);
 void reap_jobs(void);
 void add_job(pid_t pid, char* command);
 void show_jobs(void);
+
+int set_variable(const char *name, const char *value);
+char *get_variable(const char *name);
+void show_variables(void);
+void expand_variables(char **args);
 
 #endif
